@@ -11,6 +11,7 @@ const {
 
 const axios = require("axios");
 
+// Validar variables
 if (!process.env.TOKEN) {
     console.error("❌ TOKEN no encontrado");
     process.exit(1);
@@ -57,6 +58,7 @@ const rest = new REST({
     version: "10"
 }).setToken(process.env.TOKEN);
 
+// Registrar comandos
 (async () => {
 
     try {
@@ -79,199 +81,298 @@ const rest = new REST({
             "❌ Error registrando comandos:",
             error
         );
-
     }
 
 })();
 
+// Bot conectado
 client.once("clientReady", () => {
-    console.log(`✅ ${client.user.tag} conectado`);
+
+    console.log(
+        `✅ ${client.user.tag} conectado`
+    );
+
 });
 
+// Comandos
 client.on("interactionCreate", async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.commandName === "dota") {
+    if (interaction.commandName !== "dota") return;
 
-        await interaction.deferReply();
+    await interaction.deferReply();
 
-        try {
+    try {
 
-            const id = interaction.options.getString("id");
+        const id =
+            interaction.options.getString("id");
 
-            const requests = [
+        const requests = [
 
-                axios.get(
-                    `https://api.opendota.com/api/players/${id}`,
-                    { timeout: 10000 }
-                ),
+            axios.get(
+                `https://api.opendota.com/api/players/${id}`,
+                { timeout: 10000 }
+            ),
 
-                axios.get(
-                    `https://api.opendota.com/api/players/${id}/wl`,
-                    { timeout: 10000 }
-                ),
+            axios.get(
+                `https://api.opendota.com/api/players/${id}/wl`,
+                { timeout: 10000 }
+            ),
 
-                axios.get(
-                    `https://api.opendota.com/api/players/${id}/heroes`,
-                    { timeout: 10000 }
-                ),
+            axios.get(
+                `https://api.opendota.com/api/players/${id}/heroes`,
+                { timeout: 10000 }
+            ),
 
-                axios.get(
-                    `https://api.opendota.com/api/heroStats`,
-                    { timeout: 10000 }
-                )
+            axios.get(
+                `https://api.opendota.com/api/heroStats`,
+                { timeout: 10000 }
+            )
 
-            ];
+        ];
 
-            const [
-                player,
-                wl,
-                heroes,
-                heroStats
-            ] = await Promise.allSettled(requests);
+        const [
+            player,
+            wl,
+            heroes,
+            heroStats
+        ] = await Promise.allSettled(requests);
 
-            const datos =
-                player.status === "fulfilled"
-                    ? player.value.data
-                    : {};
+        const datos =
+            player.status === "fulfilled"
+                ? player.value.data
+                : {};
 
-            const wlData =
-                wl.status === "fulfilled"
-                    ? wl.value.data
-                    : {};
+        const wlData =
+            wl.status === "fulfilled"
+                ? wl.value.data
+                : {};
 
-            const heroesJugador =
-                heroes.status === "fulfilled"
-                    ? heroes.value.data
-                    : [];
+        const heroesJugador =
+            heroes.status === "fulfilled"
+                ? heroes.value.data
+                : [];
 
-            const heroesData =
-                heroStats.status === "fulfilled"
-                    ? heroStats.value.data
-                    : [];
+        const heroesData =
+            heroStats.status === "fulfilled"
+                ? heroStats.value.data
+                : [];
 
-            if (!datos.profile) {
-                return interaction.editReply(
-                    "❌ Jugador no encontrado o OpenDota no responde."
-                );
-            }
+        if (!datos.profile) {
 
-            const wins = wlData.win ?? 0;
-            const losses = wlData.lose ?? 0;
-            const partidas = wins + losses;
+            return interaction.editReply(
+                "❌ Jugador no encontrado o OpenDota no responde."
+            );
+        }
 
-            const winrate =
-                partidas > 0
-                    ? ((wins / partidas) * 100).toFixed(2) + "%"
-                    : "No disponible";
+        const wins =
+            wlData.win ?? 0;
 
-            let rango = "No disponible";
+        const losses =
+            wlData.lose ?? 0;
 
-            if (datos.rank_tier) {
+        const partidas =
+            wins + losses;
 
-                const tier = Math.floor(
+        const winrate =
+            partidas > 0
+                ? (
+                    (wins / partidas) * 100
+                ).toFixed(2) + "%"
+                : "No disponible";
+
+        let rango =
+            "No disponible";
+
+        if (datos.rank_tier) {
+
+            const tier =
+                Math.floor(
                     datos.rank_tier / 10
                 );
 
-                const estrellas =
-                    datos.rank_tier % 10;
+            const estrellas =
+                datos.rank_tier % 10;
 
-                rango =
-                    `${medallas[tier] || "?"} ${estrellas}`;
-            }
+            rango =
+                `${medallas[tier] || "?"} ${estrellas}`;
+        }
 
-            const mmr =
-                datos.mmr_estimate?.estimate
-                    ? datos.mmr_estimate.estimate
-                    : "No disponible";
+        const mmr =
+            datos.mmr_estimate?.estimate ||
+            "No disponible";
 
-            let heroeMasJugado = "Sin datos";
-            let heroeMejorWR = "Sin datos";
+        let heroeMasJugado =
+            "Sin datos";
 
-            if (heroesJugador.length > 0) {
+        let heroeMejorWR =
+            "Sin datos";
 
-                const topHero =
-                    [...heroesJugador]
-                        .sort((a, b) => b.games - a.games)[0];
+        if (heroesJugador.length > 0) {
 
-                const heroTop =
+            const topHero =
+                [...heroesJugador]
+                .sort(
+                    (a, b) =>
+                        b.games - a.games
+                )[0];
+
+            const heroTop =
+                heroesData.find(
+                    h =>
+                    h.id ===
+                    topHero.hero_id
+                );
+
+            heroeMasJugado =
+                `${heroTop?.localized_name || "?"} (${topHero.games} partidas)`;
+
+            const mejores =
+                heroesJugador
+                .filter(
+                    h =>
+                    h.games >= 10
+                )
+                .sort(
+                    (a, b) =>
+                        (b.win / b.games)
+                        -
+                        (a.win / a.games)
+                );
+
+            if (mejores.length > 0) {
+
+                const best =
+                    mejores[0];
+
+                const heroBest =
                     heroesData.find(
-                        h => h.id === topHero.hero_id
+                        h =>
+                        h.id ===
+                        best.hero_id
                     );
 
-                heroeMasJugado =
-                    `${heroTop?.localized_name || "?"} (${topHero.games} partidas)`;
+                const wr =
+                    (
+                        (best.win / best.games)
+                        * 100
+                    )
+                    .toFixed(2);
 
-                const mejores =
-                    heroesJugador
-                        .filter(h => h.games >= 10)
-                        .sort(
-                            (a, b) =>
-                                (b.win / b.games)
-                                -
-                                (a.win / a.games)
-                        );
-
-                if (mejores.length > 0) {
-
-                    const best = mejores[0];
-
-                    const heroBest =
-                        heroesData.find(
-                            h => h.id === best.hero_id
-                        );
-
-                    const wr =
-                        (
-                            (best.win / best.games)
-                            * 100
-                        ).toFixed(2);
-
-                    heroeMejorWR =
-                        `${heroBest?.localized_name || "?"} (${wr}%)`;
-                }
+                heroeMejorWR =
+                    `${heroBest?.localized_name || "?"} (${wr}%)`;
             }
-
-            const embed = new EmbedBuilder()
-
-                .setTitle("📊 Estadísticas Dota 2")
-                .setThumbnail(datos.profile.avatarfull)
-
-                .addFields(
-                    { name: "👤 Jugador", value: datos.profile.personaname || "-", inline: true },
-                    { name: "🏅 Rango", value: rango, inline: true },
-                    { name: "🏆 MMR", value: String(mmr), inline: true },
-                    { name: "📈 Winrate", value: winrate, inline: true },
-                    { name: "🎮 Partidas", value: String(partidas), inline: true },
-                    { name: "✅ Victorias", value: String(wins), inline: true },
-                    { name: "❌ Derrotas", value: String(losses), inline: true },
-                    { name: "🔥 Héroe más jugado", value: heroeMasJugado },
-                    { name: "⭐ Mejor héroe (WR)", value: heroeMejorWR }
-                )
-
-                .setColor("Blue")
-                .setFooter({
-                    text: "Datos obtenidos desde OpenDota"
-                })
-                .setTimestamp();
-
-            await interaction.editReply({
-                embeds: [embed]
-            });
-
-        } catch (error) {
-
-            console.log(error);
-
-            await interaction.editReply(
-                "❌ Error obteniendo estadísticas."
-            );
         }
+
+        const embed =
+            new EmbedBuilder()
+
+            .setTitle(
+                "📊 Estadísticas Dota 2"
+            )
+
+            .setThumbnail(
+                datos.profile.avatarfull
+            )
+
+            .addFields(
+                {
+                    name: "👤 Jugador",
+                    value: datos.profile.personaname || "-",
+                    inline: true
+                },
+                {
+                    name: "🏅 Rango",
+                    value: rango,
+                    inline: true
+                },
+                {
+                    name: "🏆 MMR",
+                    value: String(mmr),
+                    inline: true
+                },
+                {
+                    name: "📈 Winrate",
+                    value: winrate,
+                    inline: true
+                },
+                {
+                    name: "🎮 Partidas",
+                    value: String(partidas),
+                    inline: true
+                },
+                {
+                    name: "✅ Victorias",
+                    value: String(wins),
+                    inline: true
+                },
+                {
+                    name: "❌ Derrotas",
+                    value: String(losses),
+                    inline: true
+                },
+                {
+                    name: "🔥 Héroe más jugado",
+                    value: heroeMasJugado
+                },
+                {
+                    name: "⭐ Mejor héroe (WR)",
+                    value: heroeMejorWR
+                }
+            )
+
+            .setColor("Blue")
+            .setFooter({
+                text: "Datos obtenidos desde OpenDota"
+            })
+            .setTimestamp();
+
+        await interaction.editReply({
+            embeds: [embed]
+        });
+
+    } catch (error) {
+
+        console.log(error);
+
+        await interaction.editReply(
+            "❌ Error obteniendo estadísticas."
+        );
+
     }
+
 });
 
+// Login bot
 client.login(process.env.TOKEN)
+.then(() => {
+    console.log("✅ Login realizado");
+})
 .catch(error => {
-    console.error("❌ Error login:", error);
+    console.error(
+        "❌ Error login:",
+        error
+    );
 });
+
+// Manejo de errores globales
+process.on(
+    "unhandledRejection",
+    error => {
+        console.error(
+            "❌ Unhandled Promise:",
+            error
+        );
+    }
+);
+
+process.on(
+    "uncaughtException",
+    error => {
+        console.error(
+            "❌ Uncaught Exception:",
+            error
+        );
+    }
+);
