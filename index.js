@@ -291,5 +291,7 @@ client.on("interactionCreate", async interaction => {
         }
     }
 });
+console.log("TOKEN cargado:", !!process.env.TOKEN);
 
+client.login(process.env.TOKEN);
 client.login(process.env.TOKEN);
