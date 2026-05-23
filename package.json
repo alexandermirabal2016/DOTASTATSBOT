@@ -1,4 +1,11 @@
 {
+  "name": "dotastatsbot",
+  "version": "1.0.0",
+  "description": "Bot de estadísticas Dota 2 para Discord",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "axios": "^1.16.1",
     "discord.js": "^14.26.4",
