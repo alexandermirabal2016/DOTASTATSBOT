@@ -43,25 +43,31 @@ const rest = new REST({
 }).setToken(process.env.TOKEN);
 
 (async () => {
-    try {
-        await rest.put(
-            Routes.applicationGuildCommands(
-                process.env.CLIENT_ID,
-                process.env.GUILD_ID
-            ),
-            { body: commands }
-        );
 
-        console.log("✅ Comandos registrados");
+try {
 
-    } catch (err) {
-        console.log("Error registrando comandos:", err);
-    }
+await rest.put(
+Routes.applicationGuildCommands(
+process.env.CLIENT_ID,
+process.env.GUILD_ID
+),
+{
+body: commands
+}
+);
+
+console.log("✅ Comandos registrados");
+
+} catch (error) {
+
+console.error(
+"❌ Error registrando comandos:",
+error
+);
+
+}
+
 })();
-
-client.once("clientReady", () => {
-    console.log(`${client.user.tag} conectado`);
-});
 
 client.on("interactionCreate", async interaction => {
 
@@ -291,7 +297,3 @@ client.on("interactionCreate", async interaction => {
         }
     }
 });
-console.log("TOKEN cargado:", !!process.env.TOKEN);
-
-client.login(process.env.TOKEN);
-client.login(process.env.TOKEN);
