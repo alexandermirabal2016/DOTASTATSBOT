@@ -11,6 +11,21 @@ const {
 
 const axios = require("axios");
 
+if (!process.env.TOKEN) {
+    console.error("❌ TOKEN no encontrado");
+    process.exit(1);
+}
+
+if (!process.env.CLIENT_ID) {
+    console.error("❌ CLIENT_ID no encontrado");
+    process.exit(1);
+}
+
+if (!process.env.GUILD_ID) {
+    console.error("❌ GUILD_ID no encontrado");
+    process.exit(1);
+}
+
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
@@ -44,30 +59,34 @@ const rest = new REST({
 
 (async () => {
 
-try {
+    try {
 
-await rest.put(
-Routes.applicationGuildCommands(
-process.env.CLIENT_ID,
-process.env.GUILD_ID
-),
-{
-body: commands
-}
-);
+        await rest.put(
+            Routes.applicationGuildCommands(
+                process.env.CLIENT_ID,
+                process.env.GUILD_ID
+            ),
+            {
+                body: commands
+            }
+        );
 
-console.log("✅ Comandos registrados");
+        console.log("✅ Comandos registrados");
 
-} catch (error) {
+    } catch (error) {
 
-console.error(
-"❌ Error registrando comandos:",
-error
-);
+        console.error(
+            "❌ Error registrando comandos:",
+            error
+        );
 
-}
+    }
 
 })();
+
+client.once("clientReady", () => {
+    console.log(`✅ ${client.user.tag} conectado`);
+});
 
 client.on("interactionCreate", async interaction => {
 
@@ -82,6 +101,7 @@ client.on("interactionCreate", async interaction => {
             const id = interaction.options.getString("id");
 
             const requests = [
+
                 axios.get(
                     `https://api.opendota.com/api/players/${id}`,
                     { timeout: 10000 }
@@ -101,6 +121,7 @@ client.on("interactionCreate", async interaction => {
                     `https://api.opendota.com/api/heroStats`,
                     { timeout: 10000 }
                 )
+
             ];
 
             const [
@@ -132,7 +153,7 @@ client.on("interactionCreate", async interaction => {
 
             if (!datos.profile) {
                 return interaction.editReply(
-                    "❌ No se encontró ese jugador o OpenDota está caído."
+                    "❌ Jugador no encontrado o OpenDota no responde."
                 );
             }
 
@@ -172,10 +193,7 @@ client.on("interactionCreate", async interaction => {
 
                 const topHero =
                     [...heroesJugador]
-                        .sort(
-                            (a, b) =>
-                                b.games - a.games
-                        )[0];
+                        .sort((a, b) => b.games - a.games)[0];
 
                 const heroTop =
                     heroesData.find(
@@ -183,14 +201,11 @@ client.on("interactionCreate", async interaction => {
                     );
 
                 heroeMasJugado =
-                    `${heroTop?.localized_name || "?"}
-(${topHero.games} partidas)`;
+                    `${heroTop?.localized_name || "?"} (${topHero.games} partidas)`;
 
                 const mejores =
                     heroesJugador
-                        .filter(
-                            h => h.games >= 10
-                        )
+                        .filter(h => h.games >= 10)
                         .sort(
                             (a, b) =>
                                 (b.win / b.games)
@@ -214,71 +229,31 @@ client.on("interactionCreate", async interaction => {
                         ).toFixed(2);
 
                     heroeMejorWR =
-                        `${heroBest?.localized_name || "?"}
-(${wr}%)`;
+                        `${heroBest?.localized_name || "?"} (${wr}%)`;
                 }
             }
 
             const embed = new EmbedBuilder()
 
                 .setTitle("📊 Estadísticas Dota 2")
-
-                .setThumbnail(
-                    datos.profile?.avatarfull
-                )
+                .setThumbnail(datos.profile.avatarfull)
 
                 .addFields(
-                    {
-                        name: "👤 Jugador",
-                        value: datos.profile?.personaname || "-",
-                        inline: true
-                    },
-                    {
-                        name: "🏅 Rango",
-                        value: rango,
-                        inline: true
-                    },
-                    {
-                        name: "🏆 MMR",
-                        value: String(mmr),
-                        inline: true
-                    },
-                    {
-                        name: "📈 Winrate",
-                        value: winrate,
-                        inline: true
-                    },
-                    {
-                        name: "🎮 Partidas",
-                        value: String(partidas),
-                        inline: true
-                    },
-                    {
-                        name: "✅ Victorias",
-                        value: String(wins),
-                        inline: true
-                    },
-                    {
-                        name: "❌ Derrotas",
-                        value: String(losses),
-                        inline: true
-                    },
-                    {
-                        name: "🔥 Héroe más jugado",
-                        value: heroeMasJugado
-                    },
-                    {
-                        name: "⭐ Mejor héroe (WR)",
-                        value: heroeMejorWR
-                    }
+                    { name: "👤 Jugador", value: datos.profile.personaname || "-", inline: true },
+                    { name: "🏅 Rango", value: rango, inline: true },
+                    { name: "🏆 MMR", value: String(mmr), inline: true },
+                    { name: "📈 Winrate", value: winrate, inline: true },
+                    { name: "🎮 Partidas", value: String(partidas), inline: true },
+                    { name: "✅ Victorias", value: String(wins), inline: true },
+                    { name: "❌ Derrotas", value: String(losses), inline: true },
+                    { name: "🔥 Héroe más jugado", value: heroeMasJugado },
+                    { name: "⭐ Mejor héroe (WR)", value: heroeMejorWR }
                 )
 
                 .setColor("Blue")
-
                 .setFooter({
                     text: "Datos obtenidos desde OpenDota"
                 })
-
                 .setTimestamp();
 
             await interaction.editReply({
@@ -287,8 +262,6 @@ client.on("interactionCreate", async interaction => {
 
         } catch (error) {
 
-            console.log("ERROR:");
-
             console.log(error);
 
             await interaction.editReply(
@@ -296,4 +269,9 @@ client.on("interactionCreate", async interaction => {
             );
         }
     }
+});
+
+client.login(process.env.TOKEN)
+.catch(error => {
+    console.error("❌ Error login:", error);
 });
